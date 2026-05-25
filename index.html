@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NodeBeats - Music Node Sequencer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            border: 8px solid #4a4a8a;
+            border-radius: 20px;
+            box-shadow: 
+                0 0 30px rgba(74, 74, 138, 0.5),
+                inset 0 0 50px rgba(0, 0, 0, 0.5),
+                0 20px 40px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #ps-logo {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            color: #ff6b6b;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 4px rgba(255, 107, 107, 0.5);
+            z-index: 10;
+            opacity: 0.7;
+        }
+
+        #game-header {
+            background: linear-gradient(90deg, #2a2a4a 0%, #3a3a6a 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #6a6aaa;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #title {
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 3px 3px 0 #8b7500;
+            letter-spacing: 2px;
+        }
+
+        #score-display {
+            color: #00ff00;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border-radius: 10px;
+            border: 2px solid #00ff00;
+        }
+
+        #game-area {
+            flex: 1;
+            position: relative;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 39px,
+                    rgba(255, 255, 255, 0.03) 39px,
+                    rgba(255, 255, 255, 0.03) 40px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 39px,
+                    rgba(255, 255, 255, 0.03) 39px,
+                    rgba(255, 255, 255, 0.03) 40px
+                );
+            cursor: crosshair;
+            overflow: hidden;
+        }
+
+        #playhead {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #ff4444, #ff8888, #ff4444);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .music-node {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #ffd700, #ff8c00);
+            border: 3px solid #ff6600;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 3;
+            box-shadow: 
+                0 0 15px rgba(255, 140, 0, 0.8),
+                inset 0 0 10px rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease;
+            animation: nodePulse 2s infinite;
+        }
+
+        .music-node:hover {
+            transform: translate(-50%, -50%) scale(1.3);
+            box-shadow: 
+                0 0 25px rgba(255, 255, 0, 1),
+                inset 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+
+        .music-node.active {
+            background: radial-gradient(circle, #ffff00, #ff4400);
+            border-color: #ffffff;
+            transform: translate(-50%, -50%) scale(1.5);
+            box-shadow: 
+                0 0 35px rgba(255, 255, 255, 1),
+                0 0 50px rgba(255, 255, 0, 0.8);
+            animation: nodeActive 0.3s ease-out;
+        }
+
+        @keyframes nodePulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 140, 0, 0.8); }
+            50% { box-shadow: 0 0 25px rgba(255, 140, 0, 1.2); }
+        }
+
+        @keyframes nodeActive {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(2); }
+            100% { transform: translate(-50%, -50%) scale(1.5); }
+        }
+
+        #controls {
+            background: linear-gradient(90deg, #2a2a4a 0%, #3a3a6a 100%);
+            padding: 15px 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            border-top: 3px solid #6a6aaa;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: 3px solid #8a8aaa;
+            background: linear-gradient(180deg, #4a4a6a, #2a2a4a);
+            color: #ffd700;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 #1a1a3a;
+        }
+
+        .btn:hover {
+            background: linear-gradient(180deg, #5a5a8a, #3a3a6a);
+            border-color: #ffd700;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #1a1a3a;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1a1a3a;
+        }
+
+        #tempo-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 8px;
+            background: #2a2a4a;
+            border-radius: 5px;
+            outline: none;
+            border: 2px solid #6a6aaa;
+        }
+
+        #tempo-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #ffd700;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+
+        #tempo-label {
+            color: #ffd700;
+            font-size: 14px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        #particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            animation: particleFloat 1s ease-out;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--dx), var(--dy)) scale(0);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ps-logo">PLAYSTATION</div>
+        <div id="game-header">
+            <div id="title">◆ NODE BEATS ◆</div>
+            <div id="score-display">SCORE: 0000</div>
+        </div>
+        <div id="game-area">
+            <div id="playhead"></div>
+            <canvas id="particles"></canvas>
+        </div>
+        <div id="controls">
+            <button class="btn" id="play-btn">▶ PLAY</button>
+            <button class="btn" id="stop-btn">■ STOP</button>
+            <button class="btn" id="clear-btn">↺ CLEAR</button>
+            <input type="range" id="tempo-slider" min="60" max="180" value="120">
+            <span id="tempo-label">120 BPM</span>
+        </div>
+    </div>
+
+    <script>
+        class NodeBeats {
+            constructor() {
+                this.gameArea = document.getElementById('game-area');
+                this.playhead = document.getElementById('playhead');
+                this.particlesCanvas = document.getElementById('particles');
+                this.particlesCtx = this.particlesCanvas.getContext('2d');
+                this.scoreDisplay = document.getElementById('score-display');
+                this.tempoSlider = document.getElementById('tempo-slider');
+                this.tempoLabel = document.getElementById('tempo-label');
+                
+                this.nodes = [];
+                this.isPlaying = false;
+                this.score = 0;
+                this.tempo = 120;
+                this.playheadPosition = 0;
+                this.lastTime = 0;
+                this.beatInterval = null;
+                this.currentBeat = 0;
+                
+                // Audio context for generating sounds
+                this.audioCtx = null;
+                this.sounds = {};
+                
+                this.init();
+            }
+
+            init() {
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.initAudio();
+                this.startAnimationLoop();
+            }
+
+            setupCanvas() {
+                this.particlesCanvas.width = this.gameArea.clientWidth;
+                this.particlesCanvas.height = this.gameArea.clientHeight;
+                this.particlesCanvas.style.width = this.gameArea.clientWidth + 'px';
+                this.particlesCanvas.style.height = this.gameArea.clientHeight + 'px';
+            }
+
+            initAudio() {
+                // Initialize audio context on first user interaction
+                document.addEventListener('click', () => {
+                    if (!this.audioCtx) {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        this.createSounds();
+                    }
+                }, { once: true });
+            }
+
+            createSounds() {
+                // Create different instrument sounds
+                const notes = [
+                    { freq: 523.25, name: 'C5' },  // C5
+                    { freq: 587.33, name: 'D5' },  // D5
+                    { freq: 659.25, name: 'E5' },  // E5
+                    { freq: 698.46, name: 'F5' },  // F5
+                    { freq: 783.99, name: 'G5' },  // G5
+                    { freq: 880.00, name: 'A5' },  // A5
+                    { freq: 987.77, name: 'B5' },  // B5
+                    { freq: 1046.50, name: 'C6' }  // C6
+                ];
+
+                notes.forEach((note, index) => {
+                    this.sounds[index] = note.freq;
+                });
+            }
+
+            playNodeSound(yPosition) {
+                if (!this.audioCtx) return;
+                
+                // Map y position to different notes
+                const noteIndex = Math.floor((yPosition / this.gameArea.clientHeight) * 8);
+                const frequency = this.sounds[Math.min(noteIndex, 7)] || 440;
+                
+                const oscillator = this.audioCtx.createOscillator();
+                const gainNode = this.audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioCtx.destination);
+                
+                oscillator.type = 'square'; // Retro game sound
+                oscillator.frequency.setValueAtTime(frequency, this.audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.3);
+                
+                oscillator.start(this.audioCtx.currentTime);
+                oscillator.stop(this.audioCtx.currentTime + 0.3);
+            }
+
+            setupEventListeners() {
+                // Add nodes on click
+                this.gameArea.addEventListener('click', (e) => {
+                    if (!this.isPlaying) {
+                        this.addNode(e);
+                    }
+                });
+
+                // Remove nodes on right click
+                this.gameArea.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this.removeNode(e);
+                });
+
+                // Control buttons
+                document.getElementById('play-btn').addEventListener('click', () => this.startPlayback());
+                document.getElementById('stop-btn').addEventListener('click', () => this.stopPlayback());
+                document.getElementById('clear-btn').addEventListener('click', () => this.clearNodes());
+                
+                // Tempo control
+                this.tempoSlider.addEventListener('input', (e) => {
+                    this.tempo = parseInt(e.target.value);
+                    this.tempoLabel.textContent = `${this.tempo} BPM`;
+                    if (this.isPlaying) {
+                        this.stopPlayback();
+                        this.startPlayback();
+                    }
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => this.setupCanvas());
+            }
+
+            addNode(e) {
+                const rect = this.gameArea.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Check if clicking on existing node
+                const existingNode = this.nodes.find(node => {
+                    const dx = node.x - x;
+                    const dy = node.y - y;
+                    return Math.sqrt(dx * dx + dy * dy) < 20;
+                });
+
+                if (!existingNode) {
+                    const node = {
+                        x: x,
+                        y: y,
+                        element: this.createNodeElement(x, y),
+                        activated: false
+                    };
+                    
+                    this.nodes.push(node);
+                    this.gameArea.appendChild(node.element);
+                    
+                    // Preview sound
+                    this.playNodeSound(y);
+                    this.createParticles(x, y);
+                }
+            }
+
+            createNodeElement(x, y) {
+                const node = document.createElement('div');
+                node.className = 'music-node';
+                node.style.left = x + 'px';
+                node.style.top = y + 'px';
+                return node;
+            }
+
+            removeNode(e) {
+                const rect = this.gameArea.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const nodeIndex = this.nodes.findIndex(node => {
+                    const dx = node.x - x;
+                    const dy = node.y - y;
+                    return Math.sqrt(dx * dx + dy * dy) < 20;
+                });
+
+                if (nodeIndex !== -1) {
+                    const node = this.nodes[nodeIndex];
+                    node.element.remove();
+                    this.nodes.splice(nodeIndex, 1);
+                }
+            }
+
+            clearNodes() {
+                this.nodes.forEach(node => node.element.remove());
+                this.nodes = [];
+                this.score = 0;
+                this.updateScore();
+            }
+
+            startPlayback() {
+                if (!this.isPlaying && this.nodes.length > 0) {
+                    this.isPlaying = true;
+                    this.playheadPosition = 0;
+                    this.lastTime = performance.now();
+                    
+                    const beatDuration = (60 / this.tempo) * 1000; // Duration of one beat in ms
+                    
+                    this.beatInterval = setInterval(() => {
+                        this.currentBeat++;
+                        this.checkNodesForPlayhead();
+                    }, beatDuration / 4); // Check 4 times per beat for better precision
+                }
+            }
+
+            stopPlayback() {
+                this.isPlaying = false;
+                if (this.beatInterval) {
+                    clearInterval(this.beatInterval);
+                    this.beatInterval = null;
+                }
+                this.playheadPosition = 0;
+                this.playhead.style.left = '0px';
+                
+                // Deactivate all nodes
+                this.nodes.forEach(node => {
+                    node.element.classList.remove('active');
+                    node.activated = false;
+                });
+            }
+
+            checkNodesForPlayhead() {
+                const gameWidth = this.gameArea.clientWidth;
+                const playheadX = this.playheadPosition;
+                
+                this.nodes.forEach(node => {
+                    const nodeX = node.x;
+                    const distance = Math.abs(playheadX - nodeX);
+                    
+                    if (distance < 15 && !node.activated) {
+                        node.activated = true;
+                        node.element.classList.add('active');
+                        this.playNodeSound(node.y);
+                        this.createParticles(node.x, node.y);
+                        this.score += 100;
+                        this.updateScore();
+                        
+                        setTimeout(() => {
+                            node.element.classList.remove('active');
+                            node.activated = false;
+                        }, 200);
+                    }
+                });
+            }
+
+            startAnimationLoop() {
+                const animate = (currentTime) => {
+                    if (this.isPlaying) {
+                        const deltaTime = currentTime - this.lastTime;
+                        this.lastTime = currentTime;
+                        
+                        const gameWidth = this.gameArea.clientWidth;
+                        const speed = gameWidth / ((60 / this.tempo) * 4000); // Speed based on tempo
+                        
+                        this.playheadPosition += speed * deltaTime;
+                        
+                        if (this.playheadPosition >= gameWidth) {
+                            this.playheadPosition = 0;
+                            // Reset node activation states
+                            this.nodes.forEach(node => node.activated = false);
+                        }
+                        
+                        this.playhead.style.left = this.playheadPosition + 'px';
+                    }
+                    
+                    requestAnimationFrame(animate);
+                };
+                
+                requestAnimationFrame(animate);
+            }
+
+            createParticles(x, y) {
+                const colors = ['#ffd700', '#ff8c00', '#ff4444', '#00ff00', '#4488ff'];
+                
+                for (let i = 0; i < 8; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = x + 'px';
+                    particle.style.top = y + 'px';
+                    particle.style.width = '8px';
+                    particle.style.height = '8px';
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.borderRadius = '50%';
+                    particle.style.boxShadow = `0 0 10px ${particle.style.background}`;
+                    
+                    const angle = (Math.PI * 2 * i) / 8;
+                    const distance = 30 + Math.random() * 40;
+                    particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+                    particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
+                    
+                    this.gameArea.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 1000);
+                }
+            }
+
+            updateScore() {
+                this.scoreDisplay.textContent = `SCORE: ${String(this.score).padStart(4, '0')}`;
+            }
+        }
+
+        // Initialize the game
+        const game = new NodeBeats();
+
+        // Add some demo instructions
+        console.log('🎮 NodeBeats - Music Node Sequencer');
+        console.log('🖱️ Left Click: Place music nodes');
+        console.log('🖱️ Right Click: Remove nodes');
+        console.log('▶️ Press PLAY to start the sequence');
+        console.log('🎵 Different heights = Different notes');
+        console.log('🎚️ Adjust BPM with the slider');
+    </script>
+</body>
+</html>
